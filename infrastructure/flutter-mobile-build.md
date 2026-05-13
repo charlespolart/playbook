@@ -179,12 +179,83 @@ process.env.REVENUECAT_WEBHOOK_SECRET ||= "test-default";  // → "test-default"
 
 **Utiliser `||=` (logical-or assign), pas `??=` (nullish-or assign)** dans le test setup quand le projet utilise dotenv. Cas réel : un `REVENUECAT_WEBHOOK_SECRET=` vide en dev `.env` faisait passer tous les tests RC en 401 dans le CI parce que les tests envoyaient un `Authorization:` vide.
 
+## App version dans l'UI — jamais en dur
+
+Pour afficher la version dans un écran "About" / Settings, **ne jamais
+hardcoder** la string `1.0.0` dans le code Dart. À chaque bump tu vas
+oublier de la mettre à jour, et un user va te ping avec une capture
+"Settings dit 1.0.0 mais j'ai installé la 1.2.3".
+
+Pattern correct : lire la version depuis le binaire au boot, l'injecter
+via un provider Riverpod.
+
+```dart
+// apps/mobile/pubspec.yaml
+dependencies:
+  package_info_plus: ^9.0.1
+```
+
+```dart
+// packages/features/profile/lib/src/providers/profile_providers.dart
+class ProfileAppInfo {
+  const ProfileAppInfo({required this.version, required this.buildNumber});
+  final String version;
+  final String buildNumber;
+}
+
+// Default placeholder — the mobile shell MUST override this. We pick
+// "0.0.0" rather than throwing so widget tests don't need to
+// override.
+final profileAppInfoProvider = Provider<ProfileAppInfo>(
+  (ref) => const ProfileAppInfo(version: '0.0.0', buildNumber: '0'),
+);
+```
+
+```dart
+// apps/mobile/lib/main.dart
+import 'package:package_info_plus/package_info_plus.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final packageInfo = await PackageInfo.fromPlatform();
+
+  final container = ProviderContainer(
+    overrides: [
+      // ...other overrides
+      profileAppInfoProvider.overrideWithValue(
+        ProfileAppInfo(
+          version: packageInfo.version,        // pubspec `version: 1.0.0+1` → "1.0.0"
+          buildNumber: packageInfo.buildNumber, // → "1"
+        ),
+      ),
+    ],
+  );
+  runApp(UncontrolledProviderScope(container: container, child: ...));
+}
+```
+
+```dart
+// Settings screen
+final appInfo = ref.watch(profileAppInfoProvider);
+Text('${appInfo.version} (${appInfo.buildNumber})');
+```
+
+**D'où viennent les valeurs au runtime :**
+- iOS : `CFBundleShortVersionString` (version) + `CFBundleVersion` (build) dans Info.plist, eux-mêmes générés depuis `$(FLUTTER_BUILD_NAME)` + `$(FLUTTER_BUILD_NUMBER)` qui sont remplis depuis `pubspec.yaml`
+- Android : `versionName` + `versionCode` dans `android/app/build.gradle`, idem
+- Le chemin entier : `pubspec.yaml: version: 1.0.0+1` → injecté dans Info.plist / build.gradle au build → `PackageInfo.fromPlatform()` les relit au runtime
+
+Donc l'unique source de vérité est `pubspec.yaml`. Bump là, push tag, le binaire et l'UI s'auto-alignent.
+
+**Piège à éviter** : si tu mets un fallback type `'0.0.0'` dans le default du provider et tu oublies de wirer le override dans `main.dart`, l'app affichera "0.0.0" silencieusement. Toujours grep `profileAppInfoProvider` après avoir ajouté un provider similaire pour vérifier qu'il a un override dans le shell.
+
 ## Symptômes à reconnaître
 
 - **TestFlight build sans paywall** : `--dart-define` pas injecté dans le build Fastlane. Vérifier `flutter_build_ios` du Fastfile.
 - **Google Sign-In marche en local, casse en prod Android** : `GOOGLE_SERVER_CLIENT_ID` manquant en dart-define. iOS bypass via Info.plist masque le bug.
 - **Tests backend RC ou auth en 401 random** : `.env` dev a une var vide (`KEY=`), test-setup utilise `??=` → utiliser `||=`.
 - **`flutter build` mange une dart-define avec espaces** : sed pattern fragile, utiliser le script `printf %q` au lieu d'un sed naïf.
+- **Settings → About affiche "0.0.0"** : le provider d'app-version n'est pas overridé dans `main.dart`. Tu as oublié d'appeler `PackageInfo.fromPlatform()` au boot.
 
 ---
 
