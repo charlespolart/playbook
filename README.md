@@ -20,7 +20,8 @@ playbook/
 ├── infrastructure/                        # Self-host, Docker, CI/CD, mobile build
 │   ├── github-actions-deploy.md           # Build → GHCR → SSH → pull, trigger manuel
 │   ├── docker-compose-overlay.md          # Base env-neutre + overlays dev/prod
-│   └── flutter-mobile-build.md            # Makefile + Fastfile + dart-defines partagés
+│   ├── flutter-mobile-build.md            # Makefile + Fastfile + dart-defines partagés
+│   └── ios-push-entitlements.md           # aps-environment dev/prod via 2 fichiers entitlements
 └── conventions/                           # Conventions code/process (à venir)
 ```
 
