@@ -22,6 +22,7 @@ playbook/
 │   ├── docker-compose-overlay.md          # Base env-neutre + overlays dev/prod
 │   ├── flutter-mobile-build.md            # Makefile + Fastfile + dart-defines partagés
 │   ├── flutter-inapp-legal-webview.md     # Liens légaux en WebView in-app, pas Safari
+│   ├── flutter-ios26-liquid-glass-keyboard.md # Coins blancs clavier iOS 26 = resize:false sur TOUTE la chaîne Scaffold (shell inclus)
 │   └── ios-push-entitlements.md           # aps-environment dev/prod via 2 fichiers entitlements
 └── conventions/                           # Conventions code/process (à venir)
 ```
