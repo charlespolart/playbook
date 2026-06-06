@@ -25,7 +25,8 @@ playbook/
 │   ├── flutter-ios26-liquid-glass-keyboard.md # Coins blancs clavier iOS 26 = resize:false sur TOUTE la chaîne Scaffold (shell inclus)
 │   ├── android-release-signing.md         # Keystore + key.properties + Play App Signing (2 SHA !), keytool via JBR Android Studio
 │   └── ios-push-entitlements.md           # aps-environment dev/prod via 2 fichiers entitlements
-└── conventions/                           # Conventions code/process (à venir)
+└── conventions/                           # Conventions code/process
+    └── claude-code-review.md              # Reviewer = subagent pr-review-toolkit:code-reviewer (PAS superpowers / PAS /code-review) ; skills+hooks auto, subagents explicites
 ```
 
 ## Règles d'écriture
