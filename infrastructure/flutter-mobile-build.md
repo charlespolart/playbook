@@ -64,17 +64,60 @@ Points-clés :
 - Strip les guillemets matchés (convention dotenv `KEY="value"`)
 - Pas d'usage de substring négatif (macOS bash 3.2 ne supporte pas `${s:1:-1}`)
 
-## Makefile target
+## Makefile (canonique)
+
+Set de cibles standard pour un projet Flutter + backend Bun. `app`/`app-web`
+lancent l'app, `back` le backend natif (hot reload), `db`/`db-stop` Postgres en
+Docker, `ipa`/`apk` les builds release, `help` (cible par défaut) s'auto-documente
+via les commentaires `## …`. **Recettes indentées par TABULATIONS** (`make` casse
+avec "missing separator" sinon).
 
 ```make
+.PHONY: app app-web back db db-stop ipa apk help
+
+# n'y mettre que des secrets indépendants de la cible de build (clés RC…).
+# L'URL de l'API est choisie au compile-time via kDebugMode dans main.dart,
+# jamais via --dart-define, pour ne jamais shipper le mauvais host.
 MOBILE_ENV := apps/mobile/.env
 DART_DEFINES := $(shell ./apps/mobile/scripts/dart-defines.sh $(MOBILE_ENV) | xargs)
 
-ipa:
+# back natif contre un Postgres dockerisé → db/db-stop incluent l'overlay dev
+# qui expose le port hôte (sinon le backend natif ne joint pas la DB). Le
+# backend lit apps/backend/.env (auto-chargé par Bun → DATABASE_URL, PORT).
+COMPOSE_DEV := docker compose -f ops/docker-compose.yml -f ops/docker-compose.dev.yml
+
+app:     ## Flutter (prompt l'appareil si plusieurs)
+	cd apps/mobile && flutter run $(DART_DEFINES)
+
+app-web:## Flutter sur Chrome
+	cd apps/mobile && flutter run -d chrome $(DART_DEFINES)
+
+back:    ## Backend Bun (hot reload, lit apps/backend/.env)
+	cd apps/backend && bun run dev
+
+db:      ## Postgres dans Docker (arrière-plan)
+	$(COMPOSE_DEV) up -d postgres
+
+db-stop:## Stoppe Postgres
+	$(COMPOSE_DEV) down
+
+ipa:     ## Build iOS release → build/ios/ipa/
 	cd apps/mobile && flutter build ipa --release $(DART_DEFINES)
+
+apk:     ## Build Android release → build/app/outputs/flutter-apk/
+	cd apps/mobile && flutter build apk --release $(DART_DEFINES)
+
+help:    ## Liste les commandes
+	@grep -E '^[a-z-]+:.*?##' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}; {printf "  \033[36m%-8s\033[0m %s\n", $$1, $$2}'
+
+.DEFAULT_GOAL := help
 ```
 
-`xargs` collapse les newlines du script en une seule ligne d'args. Make passe ça verbatim à `flutter build`.
+Points-clés :
+- **`xargs`** regroupe les `--dart-define` (un par ligne) en l'argv unique attendu par flutter, sans casser sur les espaces.
+- **`help` auto** : chaque cible porte un `## description` que `help` grep ; `.DEFAULT_GOAL := help` → `make` seul liste tout.
+- **`db` doit exposer le port hôte** (overlay dev) si `back` tourne en natif — la base compose env-neutre ne publie aucun port.
+- Si les ports par défaut (5432 Postgres / 3000 backend) sont déjà pris localement : override `POSTGRES_HOST_PORT`/`BACKEND_HOST_PORT` (dev compose) et aligne `DATABASE_URL`/`PORT` dans `apps/backend/.env`.
 
 ## Fastfile (Ruby)
 
@@ -259,8 +302,8 @@ Donc l'unique source de vérité est `pubspec.yaml`. Bump là, push tag, le bina
 
 ---
 
-**Dernière vérif** : 2026-05-13 (Listable v1, audit pre-launch).
-**Projets concernés** : `listable`.
+**Dernière vérif** : 2026-06-22 (ajout du Makefile canonique complet depuis life-answer-notebook).
+**Projets concernés** : `listable`, `life-answer-notebook`.
 
 Sources externes consultées :
 - [Flutter — Continuous delivery](https://docs.flutter.dev/deployment/cd) (dart-define convention)
