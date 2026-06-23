@@ -17,16 +17,14 @@ playbook/
 ├── README.md                              # Ce fichier
 ├── third-party/                           # Intégrations SaaS / API externes
 │   └── revenuecat.md                      # webhook: pas de HMAC, Authorization header
-├── infrastructure/                        # Self-host, Docker, CI/CD, mobile build
-│   ├── github-actions-deploy.md           # Build → GHCR → SSH → pull, trigger manuel
-│   ├── docker-compose-overlay.md          # Base env-neutre + overlays dev/prod
-│   ├── flutter-mobile-build.md            # Makefile + Fastfile + dart-defines partagés
-│   ├── flutter-inapp-legal-webview.md     # Liens légaux en WebView in-app, pas Safari
-│   ├── flutter-ios26-liquid-glass-keyboard.md # Coins blancs clavier iOS 26 = resize:false sur TOUTE la chaîne Scaffold (shell inclus)
-│   ├── android-release-signing.md         # Keystore + key.properties + Play App Signing (2 SHA !), keytool via JBR Android Studio
-│   └── ios-push-entitlements.md           # aps-environment dev/prod via 2 fichiers entitlements
-└── conventions/                           # Conventions code/process
-    └── claude-code-review.md              # Reviewer = subagent pr-review-toolkit:code-reviewer (PAS superpowers / PAS /code-review) ; skills+hooks auto, subagents explicites
+└── infrastructure/                        # Self-host, Docker, CI/CD, mobile build
+    ├── github-actions-deploy.md           # Build → GHCR → SSH → pull, trigger manuel
+    ├── docker-compose-overlay.md          # Base env-neutre + overlays dev/prod
+    ├── flutter-mobile-build.md            # Makefile + Fastfile + dart-defines partagés
+    ├── flutter-inapp-legal-webview.md     # Liens légaux en WebView in-app, pas Safari
+    ├── flutter-ios26-liquid-glass-keyboard.md # Coins blancs clavier iOS 26 = resize:false sur TOUTE la chaîne Scaffold (shell inclus)
+    ├── android-release-signing.md         # Keystore + key.properties + Play App Signing (2 SHA !), keytool via JBR Android Studio
+    └── ios-push-entitlements.md           # aps-environment dev/prod via 2 fichiers entitlements
 ```
 
 ## Règles d'écriture
