@@ -26,7 +26,7 @@
 | Watchtower / agent qui pull tout seul | Boîte noire pour le débogage, runs aléatoires, pas de log centralisé du run |
 | Fine-grained PAT pour pull GHCR | **Bug GitHub connu** : GHCR ne supporte pas les fine-grained PATs, seulement les classic. C'est documenté nulle part proprement, ça te fait perdre 30 min |
 
-## Workflow file (Listable version, généralisable)
+## Workflow file (généralisable)
 
 ```yaml
 # .github/workflows/deploy.yml
@@ -248,5 +248,4 @@ Mais pour solo-dev pré-PMF, ce stack est optimal.
 
 ---
 
-**Dernière vérif** : 2026-05-13 (Listable v1, en prod).
-**Projets concernés** : `listable`.
+**Dernière vérif** : 2026-05-13 (en prod).

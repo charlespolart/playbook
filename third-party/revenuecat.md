@@ -6,7 +6,7 @@
 
 Si tu codes le handler en partant des conventions de l'industrie (Stripe, GitHub, Shopify — qui utilisent tous HMAC-SHA256), ton handler va `401` tous les vrais webhooks et zéro souscription ne se synce. Le pire : ça marche en test si tu fakes toi-même la signature, ça casse silencieusement en prod.
 
-C'est exactement ce qui était shippé dans Listable jusqu'au commit `53554e2`.
+C'est exactement ce qui était shippé en prod jusqu'au commit `53554e2`.
 
 ## Le bon pattern
 
@@ -85,5 +85,4 @@ Le webhook met à jour la table backend. Le frontend cache localement l'état pr
 
 ---
 
-**Dernière vérif** : 2026-05-13 (Listable + dian-dian, vs. doc RC officielle).
-**Projets concernés** : `listable`, `dian-dian` (pattern identique).
+**Dernière vérif** : 2026-05-13 (vs. doc RC officielle).

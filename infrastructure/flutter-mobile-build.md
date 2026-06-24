@@ -2,7 +2,7 @@
 
 ## Le piège qu'on vient de manger
 
-Listable v1 avait `make ipa` qui injectait les secrets mobiles via `--dart-define`, mais `bundle exec fastlane ios beta` (le path réel pour TestFlight) builduait **sans aucun `--dart-define`**. Conséquence : un IPA shippé sur TestFlight avec `REVENUECAT_IOS_KEY` vide → paywall silencieusement dead, zéro souscription possible. Pas d'erreur de build, juste un binaire dégradé. Trouvé en audit, pas en prod, mais à 24h près.
+Un projet avait `make ipa` qui injectait les secrets mobiles via `--dart-define`, mais `bundle exec fastlane ios beta` (le path réel pour TestFlight) builduait **sans aucun `--dart-define`**. Conséquence : un IPA shippé sur TestFlight avec `REVENUECAT_IOS_KEY` vide → paywall silencieusement dead, zéro souscription possible. Pas d'erreur de build, juste un binaire dégradé. Trouvé en audit, pas en prod, mais à 24h près.
 
 ## Le pattern propre
 
@@ -15,7 +15,7 @@ Makefile                       # call .sh via xargs
 fastlane/Fastfile              # call .sh via Shellwords / re-parse en Ruby
 ```
 
-**Une seule source de parsing du `.env`** réutilisée par tous les callers de build. Sinon Makefile et Fastfile divergent — typiquement le Makefile gagne des features et Fastlane reste cassé silencieusement (notre cas exact chez Listable v1).
+**Une seule source de parsing du `.env`** réutilisée par tous les callers de build. Sinon Makefile et Fastfile divergent — typiquement le Makefile gagne des features et Fastlane reste cassé silencieusement (notre cas exact, vécu en prod).
 
 ## Mobile secrets vs backend secrets
 
@@ -283,7 +283,6 @@ Donc l'unique source de vérité est `pubspec.yaml`. Bump là, push tag, le bina
 ---
 
 **Dernière vérif** : 2026-06-24 (interface Make générale extraite vers `project-structure.md` ; cette fiche ne garde que les cibles mobile + dart-defines).
-**Projets concernés** : `listable`, `life-answer-notebook`.
 
 Sources externes consultées :
 - [Flutter — Continuous delivery](https://docs.flutter.dev/deployment/cd) (dart-define convention)

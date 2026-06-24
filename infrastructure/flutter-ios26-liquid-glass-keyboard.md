@@ -37,7 +37,7 @@ Fausses pistes qu'on a toutes essayées (aucune ne marche) :
 | Tentative | Pourquoi ça échoue |
 |---|---|
 | `UIWindow.backgroundColor = cream` (SceneDelegate) | Mauvaise window — le clavier vit dans une `UIRemoteKeyboardWindow` séparée. Et ça peint un bloc plat statique, pas le contenu vivant. |
-| `Main.storyboard` / `LaunchScreen.storyboard` en crème | Le verre composite les pixels **Flutter**, pas la couleur native de la view. (Preuve : dian-dian a une storyboard BLANCHE et ses coins montrent quand même le rose du thème.) |
+| `Main.storyboard` / `LaunchScreen.storyboard` en crème | Le verre composite les pixels **Flutter**, pas la couleur native de la view. (Preuve : un projet à storyboard BLANCHE voit quand même ses coins montrer la couleur du thème.) |
 | `canvasColor: Colors.transparent` dans le ThemeData | Révèle le fond de la FlutterView, pas le contenu. Casse aussi Drawer/Dropdown. |
 | `backgroundColor: Colors.transparent` sur le Scaffold de l'écran | Cause un **bleed** : pendant la transition de route go_router, le Scaffold transparent entrant révèle la page précédente. Et ne résout pas le blanc. |
 | `UIDesignRequiresCompatibility = true` (Info.plist) | Marche mais c'est l'inverse de ce qu'on veut : ça **désactive** Liquid Glass → clavier opaque iOS-18. Solution de repli uniquement. |
@@ -74,7 +74,7 @@ au lieu du blanc. **Du Dart pur → ça hot-reload**, pas de rebuild natif.
 
 Le réflexe (et tous les vieux SO sur "transparent corners") pousse vers
 `backgroundColor: Colors.transparent` + un fond peint au root. Ça marche
-chez dian-dian **parce qu'il n'utilise pas de routes** (écrans swappés via
+sur un projet **sans routes** (écrans swappés via
 `AnimatedSwitcher` sous un `CustomPaint` root persistant).
 
 Avec **go_router**, chaque écran est une route. Un Scaffold transparent
@@ -101,8 +101,8 @@ Avant de bidouiller des couleurs, **éliminer les variables d'environnement** :
 4. **Une fois l'environnement écarté, le delta est forcément dans l'arbre
    de widgets.** Comparer la structure Scaffold/route du projet qui marche.
    C'est là qu'on voit "transparent scaffolds + root paint, pas de routes"
-   chez dian-dian → et qu'on remonte au Scaffold parent qui resize chez
-   nous.
+   sur le projet de référence → et qu'on remonte au Scaffold parent qui
+   resize chez nous.
 
 Le piège méta : on a passé des heures à recolorier des couches natives
 (window, storyboard, canvas) en croyant à un problème de couleur. C'était
@@ -140,8 +140,7 @@ dès que le fix layout marche, sinon on perd tout le look iOS 26.
 
 ---
 
-**Dernière vérif** : 2026-06-02 (Listable v1, iOS 26.2, Flutter 3.44, Xcode 26.2).
-**Projets concernés** : `listable`. Référence qui-marche : `dian-dian`.
+**Dernière vérif** : 2026-06-02 (iOS 26.2, Flutter 3.44, Xcode 26.2).
 
 Sources externes consultées :
 - [flutter/flutter #179482](https://github.com/flutter/flutter/issues/179482) — Semi-transparent keyboard on iOS 26 reveals widgets that do not draw under it

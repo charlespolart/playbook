@@ -106,14 +106,6 @@ sont imposés. Le Makefile traduit le verbe vers ce que le projet utilise réell
 - `packages/` : `core` (domaine pur), `shared` (types front↔back), `data`
   (repos/sources), `db` (schéma+migrations), `ui_kit` (design system Flutter).
 
-## État actuel (alignement structurel, pas techno)
-
-| Projet | À corriger |
-|---|---|
-| `listable`, `life-answer-notebook` | ★ références — rien |
-| `dian-dian` | `backend/` + `flutter_app/` → `apps/backend` + `apps/mobile` ; `db-down` → `db-stop` |
-| `trader-pro-xl-plus` | ajouter un `Makefile` ; `apps/server` → `apps/backend` ; `docker-compose.yml` racine → `ops/` ; un `.env` par app |
-
 ## Checklist nouveau projet
 
 1. `apps/{backend[,web][,mobile]}` + `packages/` (si partage) + `ops/` + `docs/`.
@@ -124,6 +116,5 @@ sont imposés. Le Makefile traduit le verbe vers ce que le projet utilise réell
 
 ---
 
-**Dernière vérif** : 2026-06-24 (extrait de l'audit `listable` / `life-answer-notebook` / `dian-dian` / `trader-pro-xl-plus`).
-**Projets concernés** : tous.
+**Dernière vérif** : 2026-06-24.
 **Voir aussi** : `infrastructure/flutter-mobile-build.md` (Makefile mobile + secrets), `infrastructure/docker-compose-overlay.md` (`ops/`).

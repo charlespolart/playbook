@@ -140,8 +140,7 @@ Pas besoin de le splitter Debug/Release — c'est le même pour les deux. Mais l
 
 ---
 
-**Dernière vérif** : 2026-05-15 (Listable, vs. Apple Developer Documentation officielle).
-**Projets concernés** : `listable` (`com.overridedev.listable`).
+**Dernière vérif** : 2026-05-15 (vs. Apple Developer Documentation officielle).
 
 Sources externes consultées :
 - [APS Environment Entitlement — Apple Developer Documentation](https://developer.apple.com/documentation/bundleresources/entitlements/aps-environment)

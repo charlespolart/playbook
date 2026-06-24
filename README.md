@@ -1,6 +1,6 @@
 # Coding Playbook
 
-Knowledge base partagée entre **Charles** (l'humain) et **les instances de Claude Code** qui bossent sur ses projets (`listable`, `dian-dian`, etc.).
+Knowledge base partagée entre **Charles** (l'humain) et **les instances de Claude Code** qui bossent sur ses projets.
 
 L'idée : éviter de re-tomber dans les mêmes pièges. Chaque fois qu'on découvre un truc non-évident — bug subtil dans une intégration tierce, gotcha d'un outil, convention qui marche bien sur un projet — on l'écrit ici. La prochaine fois (ou sur la prochaine app), on lit avant de coder.
 

@@ -124,7 +124,7 @@ Où ils servent :
   re-télécharger `google-services.json`. Sans ça, `oauth_client: []`
   reste vide → Google Sign-In échoue (`DEVELOPER_ERROR`).
 - **App Links** : le SHA-256 va dans le `assetlinks.json` servi par le
-  backend (chez Listable : env `ANDROID_SHA256_FINGERPRINTS`).
+  backend (ex. env `ANDROID_SHA256_FINGERPRINTS`).
 
 ## ⚠️ Play App Signing : DEUX clés, pas une
 
@@ -164,8 +164,7 @@ marche en build local.
 
 ---
 
-**Dernière vérif** : 2026-06-03 (Listable v1, macOS, Flutter 3.44, Android Studio JBR 21).
-**Projets concernés** : `listable`. S'appliquera à `dian-dian` au moment de son release Android.
+**Dernière vérif** : 2026-06-03 (macOS, Flutter 3.44, Android Studio JBR 21).
 
 Sources externes consultées :
 - [Flutter — Build and release an Android app (signing)](https://docs.flutter.dev/deployment/android#signing-the-app)

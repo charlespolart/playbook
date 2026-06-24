@@ -175,7 +175,7 @@ Conséquence : si ta runbook dit "mets `RESEND_API_KEY=...` dans `/srv/<app>/.en
 
 **Solution propre** : `env_file: - /srv/<app>/.env` injecte tout. Tu gardes `environment:` pour les overrides explicites (ex. `NODE_ENV: production` pour forcer, ou `BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?must be set}` pour fail-closed sur var manquante).
 
-C'est le bug qui aurait silencieusement cassé l'upload avatar R2 chez Listable jusqu'au refactor compose : les R2_* étaient dans `.env` mais pas mappés en `environment:`, donc absents du container.
+C'est le bug qui aurait silencieusement cassé l'upload avatar R2 jusqu'au refactor compose : les R2_* étaient dans `.env` mais pas mappés en `environment:`, donc absents du container.
 
 ## Validation
 
@@ -204,5 +204,4 @@ docker compose -f ops/docker-compose.yml -f ops/docker-compose.prod.yml \
 
 ---
 
-**Dernière vérif** : 2026-05-13 (Listable v1).
-**Projets concernés** : `listable`.
+**Dernière vérif** : 2026-05-13.

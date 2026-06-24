@@ -8,7 +8,7 @@ Sur mobile, tap sur "Privacy" / "Terms" / "Contact" via `launchUrl(uri, mode: La
 2. **Retour en arrière non garanti.** Sur iOS, il faut un back-tap sur la status bar (qui suppose que la "back-to-app" pill est affichée). Sur Android, c'est le back-system qui dépend du launcher. Une partie des users ne revient pas.
 3. **Risque review Apple sur le paywall.** §3.1.2(a) exige Terms + Privacy sur l'écran d'abonnement. Apple n'interdit pas le hand-off Safari, mais une WebView in-app passe sans friction et limite les rejets "user can't read your terms before subscribing".
 
-Dian Dian shippait `LaunchMode.externalApplication` partout (Settings + paywall) jusqu'au commit `0853616`.
+Un projet shippait `LaunchMode.externalApplication` partout (Settings + paywall) jusqu'au commit `0853616`.
 
 ## Le bon pattern
 
@@ -51,9 +51,9 @@ Une AppBar / TopBar app-branded (pas la `AppBar` Material par défaut) renforce 
 
 ## Localisation des pages
 
-Les deux projets (listable + dian-dian) servent leurs pages légales en plusieurs langues. Pattern partagé : un helper `localizedXxxUri(base, langCode)` qui transforme l'URL juste avant de la passer au WebView.
+Les apps servent leurs pages légales en plusieurs langues. Pattern partagé : un helper `localizedXxxUri(base, langCode)` qui transforme l'URL juste avant de la passer au WebView.
 
-Listable utilise un préfixe path : `/legal/privacy` (fr) → `/en/legal/privacy`. Dian Dian utilise un query param : `?lang=zh-CN`. Le helper se charge de l'aiguillage selon la convention backend de chaque app.
+Une app utilise un préfixe path : `/legal/privacy` (fr) → `/en/legal/privacy` ; une autre un query param : `?lang=zh-CN`. Le helper se charge de l'aiguillage selon la convention backend de chaque app.
 
 L'aiguillage doit rester dans le helper UI, pas dans le caller. Sinon chaque appelant duplique la map `Language → code`.
 
@@ -106,5 +106,4 @@ cd ios && rm -rf Pods Podfile.lock && pod install
 
 ---
 
-**Dernière vérif** : 2026-06-02 (dian-dian commit `0853616`).
-**Projets concernés** : `dian-dian`, `listable`.
+**Dernière vérif** : 2026-06-02.
