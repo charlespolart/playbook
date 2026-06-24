@@ -15,6 +15,7 @@ Quand tu apprends quelque chose qui mérite d'être capturé (bug récurrent, co
 ```
 playbook/
 ├── README.md                              # Ce fichier
+├── project-structure.md                   # Layout root (apps/packages/ops) + interface Make commune
 ├── third-party/                           # Intégrations SaaS / API externes
 │   └── revenuecat.md                      # webhook: pas de HMAC, Authorization header
 └── infrastructure/                        # Self-host, Docker, CI/CD, mobile build
