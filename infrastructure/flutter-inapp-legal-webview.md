@@ -8,7 +8,7 @@ Sur mobile, tap sur "Privacy" / "Terms" / "Contact" via `launchUrl(uri, mode: La
 2. **Retour en arrière non garanti.** Sur iOS, il faut un back-tap sur la status bar (qui suppose que la "back-to-app" pill est affichée). Sur Android, c'est le back-system qui dépend du launcher. Une partie des users ne revient pas.
 3. **Risque review Apple sur le paywall.** §3.1.2(a) exige Terms + Privacy sur l'écran d'abonnement. Apple n'interdit pas le hand-off Safari, mais une WebView in-app passe sans friction et limite les rejets "user can't read your terms before subscribing".
 
-Un projet shippait `LaunchMode.externalApplication` partout (Settings + paywall) jusqu'au commit `0853616`.
+Un projet shippait `LaunchMode.externalApplication` partout (Settings + paywall).
 
 ## Le bon pattern
 

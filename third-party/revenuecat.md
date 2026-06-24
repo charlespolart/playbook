@@ -6,7 +6,7 @@
 
 Si tu codes le handler en partant des conventions de l'industrie (Stripe, GitHub, Shopify — qui utilisent tous HMAC-SHA256), ton handler va `401` tous les vrais webhooks et zéro souscription ne se synce. Le pire : ça marche en test si tu fakes toi-même la signature, ça casse silencieusement en prod.
 
-C'est exactement ce qui était shippé en prod jusqu'au commit `53554e2`.
+C'est exactement ce qui était shippé en prod.
 
 ## Le bon pattern
 
