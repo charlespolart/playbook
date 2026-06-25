@@ -25,7 +25,8 @@ playbook/
     ├── flutter-inapp-legal-webview.md     # Liens légaux en WebView in-app, pas Safari
     ├── flutter-ios26-liquid-glass-keyboard.md # Coins blancs clavier iOS 26 = resize:false sur TOUTE la chaîne Scaffold (shell inclus)
     ├── android-release-signing.md         # Keystore + key.properties + Play App Signing (2 SHA !), keytool via JBR Android Studio
-    └── ios-push-entitlements.md           # aps-environment dev/prod via 2 fichiers entitlements
+    ├── ios-push-entitlements.md           # aps-environment dev/prod via 2 fichiers entitlements
+    └── apple-team-id-and-bundle-id.md     # Team ID + bundle id : TOUJOURS demander à Charles, jamais deviner
 ```
 
 ## Règles d'écriture
