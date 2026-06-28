@@ -187,6 +187,67 @@ Usage :
 - `./ops/scripts/deploy.sh` → deploy HEAD
 - `./ops/scripts/deploy.sh abc1234` → rollback à un tag précédent (l'image doit toujours exister sur GHCR)
 
+> **Porte d'entrée laptop** : on wrappe le script dans le `Makefile` racine —
+> `make deploy` (= `deploy.sh`), `make deploy TAG=<sha7>` pour un rollback. Le
+> déclenchement reste **manuel** : script **ou** bouton *Run workflow* dans
+> l'onglet Actions — jamais `on: push` (cf. anti-patterns).
+
+## Front statique (Vite/SPA) : un deploy SÉPARÉ du backend
+
+Quand le backend sert le SPA en prod, on le sert plutôt via **Caddy**
+(`file_server`) et on déploie le front **indépendamment** : un changement de
+front ne doit jamais rebuild/redémarrer le backend (ni couper les bots /
+WebSockets en cours). Deux pipelines `workflow_dispatch` distincts :
+
+- **Backend** : `make deploy` → build image → GHCR → pull/migrate/restart (ci-dessus).
+- **Front** : `make deploy-web` → build le SPA + `rsync` du `dist/` vers le dossier
+  servi par Caddy. **Aucun contact avec le backend** → zéro interruption du live.
+
+```yaml
+# .github/workflows/deploy-web.yml
+name: Deploy Web
+on: { workflow_dispatch: {} }
+concurrency: { group: deploy-web, cancel-in-progress: true }
+jobs:
+  build-and-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: 1.2.x }
+      - run: bun install --frozen-lockfile
+      - run: bun run --cwd apps/web build
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+      - name: Rsync dist → VPS (front only)
+        env: { VPS_HOST: "${{ secrets.VPS_HOST }}", VPS_USER: "${{ secrets.VPS_USER }}" }
+        run: |
+          ssh -i ~/.ssh/id_deploy "$VPS_USER@$VPS_HOST" 'mkdir -p /srv/<app>/web'
+          # --delete OK ICI : cible = le sous-dossier web/ UNIQUEMENT (jamais /srv/<app>)
+          rsync -az --delete -e 'ssh -i ~/.ssh/id_deploy' \
+            apps/web/dist/ "$VPS_USER@$VPS_HOST:/srv/<app>/web/"
+```
+
+Le `deploy-web.sh` côté laptop est le miroir de `deploy.sh` (`gh workflow run
+deploy-web.yml` + `gh run watch`). Côté Caddy, l'API et le SPA cohabitent —
+**router l'API/WS AVANT** le fallback SPA (cf. pièges #7) :
+
+```caddyfile
+{$DOMAIN} {
+    @backend path /api/* /ws /ws/*
+    handle @backend { reverse_proxy backend:3001 }
+    handle {                         # tout le reste = SPA
+        root * /srv/www
+        try_files {path} /index.html
+        file_server
+    }
+}
+```
+
 ## Setup avant le premier deploy
 
 **Côté GitHub (depuis le laptop, dans le repo) :**
@@ -237,6 +298,10 @@ Si la migration de cet ancien SHA inclut une DDL irréversible (`DROP COLUMN`, e
 
 6. **`up -d` vs `up -d --wait`** : sans `--wait`, le workflow rend la main dès que les containers sont "started" même si leur healthcheck rate. Avec `--wait`, ça bloque jusqu'à healthy. Toujours `--wait` en CI pour que les runs verts garantissent un service réellement UP.
 
+7. **API avalée par le SPA** : avec `file_server` + `try_files {path} /index.html`, les requêtes `/api/*` sont réécrites vers `index.html` AVANT d'atteindre le `reverse_proxy`. Router l'API dans un `handle @backend { reverse_proxy … }` placé AVANT le `handle { … file_server }` du SPA (snippet de la section front).
+
+8. **Caddy `reload` qui n'applique pas** : `caddy reload --config /etc/caddy/Caddyfile` peut sortir en exit 0 sans recharger le nouveau Caddyfile. Forcer l'adaptateur + le reload : `--adapter caddyfile --force`. Avec le piège #3 (inode du bind mount), c'est ce qui garantit qu'un changement de Caddyfile prend effet sans recréer le container.
+
 ## Quand passer à autre chose
 
 Ce pattern tient jusqu'à ~10K users et un seul VPS. Au-delà :
@@ -248,4 +313,4 @@ Mais pour solo-dev pré-PMF, ce stack est optimal.
 
 ---
 
-**Dernière vérif** : 2026-05-13 (en prod).
+**Dernière vérif** : 2026-06-28 (en prod ; ajout du deploy front/SPA séparé + `make deploy`).

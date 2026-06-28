@@ -53,6 +53,8 @@ même quand la techno change. Verbes communs :
 | `app-web` | front mobile dans Chrome | | | ✅ |
 | `web` | front web en dev (vite…) | | ✅ | |
 | `db` / `db-stop` | base de données (docker) | ✅ | ✅ | ✅ |
+| `deploy` | déploie le backend (CI → GHCR → VPS, manuel) → `github-actions-deploy.md` | ✅ | ✅ | |
+| `deploy-web` | déploie le front statique (rsync, séparé du back) | | ✅ | |
 | `ipa` / `apk` | builds stores | | | ✅ |
 
 **Conventions Make générales (tous projets) :**
@@ -65,7 +67,7 @@ même quand la techno change. Verbes communs :
 **Socle commun** = `back` / `db` / `db-stop` / `help`. Gabarit **web** (y ajoute `web` / `build`) :
 
 ```make
-.PHONY: help back web db db-stop build
+.PHONY: help back web db db-stop build deploy deploy-web
 .DEFAULT_GOAL := help
 # back natif contre Postgres dockerisé → overlay dev expose le port hôte (cf. docker-compose-overlay.md)
 COMPOSE_DEV := docker compose -f ops/docker-compose.yml -f ops/docker-compose.dev.yml
@@ -80,8 +82,12 @@ db-stop: ## Stoppe la DB
 	$(COMPOSE_DEV) down
 build:   ## Build du front
 	bun run --cwd apps/web build
+deploy:     ## Déploie le backend (CI → GHCR → VPS, manuel). Rollback : make deploy TAG=<sha7>
+	./ops/scripts/deploy.sh $(TAG)
+deploy-web: ## Déploie le front (build + rsync, n'impacte PAS le backend)
+	./ops/scripts/deploy-web.sh
 help:    ## Liste les commandes
-	@grep -E '^[a-z-]+:.*?##' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}; {printf "  \033[36m%-8s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-z-]+:.*?##' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
 ```
 
 **Mobile** : ajoute les cibles `app` / `app-web` / `ipa` / `apk` (injection des
@@ -116,5 +122,5 @@ sont imposés. Le Makefile traduit le verbe vers ce que le projet utilise réell
 
 ---
 
-**Dernière vérif** : 2026-06-24.
+**Dernière vérif** : 2026-06-28 (ajout cibles `deploy` / `deploy-web`).
 **Voir aussi** : `infrastructure/flutter-mobile-build.md` (Makefile mobile + secrets), `infrastructure/docker-compose-overlay.md` (`ops/`).
