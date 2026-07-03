@@ -55,6 +55,7 @@ Le point d'entrée le plus rapide : tu observes ça → lis cette fiche.
 | Tap "Terms"/"Privacy" éjecte dans Safari | `mobile/flutter-inapp-legal-webview.md` |
 | Signature device iOS impossible / app sous le mauvais compte | `mobile/apple-team-id-and-bundle-id.md` (demander, jamais deviner) |
 | Tests backend en 401 aléatoires avec dotenv | `mobile/flutter-mobile-build.md` (`\|\|=` vs `??=` sur env vide) |
+| `Failed query` sur une colonne qui existe pourtant dans le code | `project-structure.md` (dérive de schéma local — `make db-migrate`) |
 
 Chaque fiche garde sa section « Symptômes à reconnaître » plus détaillée ;
 cette table n'est que l'aiguillage. **Une nouvelle fiche = une ligne ici.**

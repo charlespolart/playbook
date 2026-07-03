@@ -53,6 +53,7 @@ même quand la techno change. Verbes communs :
 | `app-web` | front mobile dans Chrome | | | ✅ |
 | `web` | front web en dev (vite…) | | ✅ | |
 | `db` / `db-stop` | base de données (docker) | ✅ | ✅ | ✅ |
+| `db-migrate` | applique les migrations sur la DB locale | ✅ | ✅ | ✅ |
 | `deploy` | déploie le backend (CI → GHCR → VPS, manuel) → `github-actions-deploy.md` | ✅ | ✅ | |
 | `deploy-web` | déploie le front statique (rsync, séparé du back) | | ✅ | |
 | `ipa` / `apk` | builds stores | | | ✅ |
@@ -67,7 +68,7 @@ même quand la techno change. Verbes communs :
 **Socle commun** = `back` / `db` / `db-stop` / `help`. Gabarit **web** (y ajoute `web` / `build`) :
 
 ```make
-.PHONY: help back web db db-stop build deploy deploy-web
+.PHONY: help back web db db-stop db-migrate build deploy deploy-web
 .DEFAULT_GOAL := help
 # back natif contre Postgres dockerisé → overlay dev expose le port hôte (cf. docker-compose-overlay.md)
 COMPOSE_DEV := docker compose -f ops/docker-compose.yml -f ops/docker-compose.dev.yml
@@ -80,6 +81,8 @@ db:      ## DB (docker, arrière-plan)
 	$(COMPOSE_DEV) up -d postgres
 db-stop: ## Stoppe la DB
 	$(COMPOSE_DEV) down
+db-migrate: ## Migrations DB locales (après un pull qui en ajoute)
+	bun run --cwd packages/db migrate
 build:   ## Build du front
 	bun run --cwd apps/web build
 deploy:     ## Déploie le backend (CI → GHCR → VPS, manuel). Rollback : make deploy TAG=<sha7>
@@ -92,6 +95,18 @@ help:    ## Liste les commandes
 
 **Mobile** : ajoute les cibles `app` / `app-web` / `ipa` / `apk` (injection des
 `--dart-define`) — script + détails dans `mobile/flutter-mobile-build.md`.
+
+**Piège — dérive de schéma local vs prod.** La prod migre TOUTE SEULE (le
+pipeline de deploy exécute `migrate` avant le restart — cf.
+`infrastructure/github-actions-deploy.md`) ; le poste local, JAMAIS. Après un
+pull qui ajoute une migration, la DB locale est en retard **silencieusement** —
+jusqu'au jour où un endpoint rarement utilisé explose en
+`Failed query: select "colonne_qui_nexiste_pas"…`. Symptôme vécu : une colonne
+présente dans le schéma du code, absente de la DB locale, des semaines après
+la migration (et maquillée en « 400 Bad Request » par un onError trop
+générique — une panne interne doit remonter en 500). Réflexe : `make
+db-migrate` après tout pull qui touche le dossier des migrations (ou
+l'automatiser au boot du backend dev).
 
 ## Ce qui n'est PAS figé
 
@@ -122,5 +137,5 @@ sont imposés. Le Makefile traduit le verbe vers ce que le projet utilise réell
 
 ---
 
-**Dernière vérif** : 2026-06-28 (ajout cibles `deploy` / `deploy-web`).
+**Dernière vérif** : 2026-07-03 (ajout `db-migrate` + piège dérive de schéma local, vécu).
 **Voir aussi** : `mobile/flutter-mobile-build.md` (Makefile mobile + secrets), `infrastructure/docker-compose-overlay.md` (`ops/`).
