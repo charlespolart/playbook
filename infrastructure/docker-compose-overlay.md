@@ -177,6 +177,22 @@ Conséquence : si ta runbook dit "mets `RESEND_API_KEY=...` dans `/srv/<app>/.en
 
 C'est le bug qui aurait silencieusement cassé l'upload avatar R2 jusqu'au refactor compose : les R2_* étaient dans `.env` mais pas mappés en `environment:`, donc absents du container.
 
+### ⚠️ `$` littéral dans les valeurs : écrire `$$`
+
+Compose (≥ v2.24) **interpole les valeurs** d'`env_file` : `PASSWORD=$hv58xyz`
+est lu comme une référence à la variable `hv58xyz` (inexistante) → valeur
+**vide ou tronquée, silencieusement**. Tout `$` littéral s'écrit `$$` :
+
+```dotenv
+ADMIN_PASSWORD=$$hv58xyz     # le process reçoit "$hv58xyz"
+```
+
+Vécu : un mot de passe commençant par `$` posé tel quel dans le `.env` prod →
+var vide → backend en crash-loop au redémarrage suivant. C'est le garde-fou
+fail-closed (`:?` côté compose, ou un check applicatif au boot) qui a rendu le
+problème VISIBLE au lieu de laisser tourner une prod sans auth. Les deux
+pièges se compensent : `$$` évite l'accident, `:?`/fail-closed le détecte.
+
 ## Validation
 
 `docker compose ... config` rend la conf merged finale. Toujours run avant de commit un changement compose :
@@ -202,6 +218,15 @@ docker compose -f ops/docker-compose.yml -f ops/docker-compose.prod.yml \
 
 5. **Validation env vars avec `:?`** : préfère `${VAR:?must be set}` plutôt que `${VAR}` tout court. Le `:?` fail-closed à `compose up` si la var est vide, plutôt que de laisser le container booter avec une string vide et crasher à la 1ère requête.
 
+6. **`stop_grace_period` si l'app a un arrêt propre** : compose envoie SIGTERM puis **SIGKILL après 10 s** par défaut. Une app qui doit finir un travail au shutdown (sauver un état, drainer des connexions, laisser aboutir des écritures en vol) se fait tuer au milieu. Poser dans l'overlay prod :
+   ```yaml
+   backend:
+     stop_grace_period: 60s
+   ```
+   À dimensionner sur le pire cas réel du shutdown, pas au pif.
+
+7. **`$` dans les valeurs d'`env_file`** : voir la section dédiée ci-dessus — `$$` obligatoire, sinon interpolation silencieuse.
+
 ---
 
-**Dernière vérif** : 2026-05-13.
+**Dernière vérif** : 2026-07-03 (ajout `$$` — vécu en prod — et `stop_grace_period`).

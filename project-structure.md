@@ -91,7 +91,7 @@ help:    ## Liste les commandes
 ```
 
 **Mobile** : ajoute les cibles `app` / `app-web` / `ipa` / `apk` (injection des
-`--dart-define`) — script + détails dans `infrastructure/flutter-mobile-build.md`.
+`--dart-define`) — script + détails dans `mobile/flutter-mobile-build.md`.
 
 ## Ce qui n'est PAS figé
 
@@ -123,4 +123,4 @@ sont imposés. Le Makefile traduit le verbe vers ce que le projet utilise réell
 ---
 
 **Dernière vérif** : 2026-06-28 (ajout cibles `deploy` / `deploy-web`).
-**Voir aussi** : `infrastructure/flutter-mobile-build.md` (Makefile mobile + secrets), `infrastructure/docker-compose-overlay.md` (`ops/`).
+**Voir aussi** : `mobile/flutter-mobile-build.md` (Makefile mobile + secrets), `infrastructure/docker-compose-overlay.md` (`ops/`).

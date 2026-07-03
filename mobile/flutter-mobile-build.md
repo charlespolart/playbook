@@ -97,7 +97,7 @@ Points-clés (spécifiques mobile) :
 - **`xargs`** regroupe les `--dart-define` (un par ligne) en l'argv unique attendu par flutter, sans casser sur les espaces.
 - `app`/`ipa`/`apk` injectent **tous** `DART_DEFINES` — c'est exactement ce que Fastlane doit répliquer (cf. plus bas), sinon IPA/AAB dégradé silencieux.
 
-(Le général — `help` auto, overlay dev de la DB, override des ports — est dans `project-structure.md` et `docker-compose-overlay.md`.)
+(Le général — `help` auto, overlay dev de la DB, override des ports — est dans `project-structure.md` et `infrastructure/docker-compose-overlay.md`.)
 
 ## Fastfile (Ruby)
 

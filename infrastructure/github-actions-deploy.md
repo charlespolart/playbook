@@ -57,25 +57,38 @@ jobs:
       - uses: actions/checkout@v4
 
       - id: meta
-        run: |
-          if [ "${{ github.event.inputs.tag }}" = "latest" ]; then
-            echo "tag=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
-          else
-            echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
-          fi
-          owner_lc="${OWNER,,}"  # GHCR exige lowercase
-          echo "image_name=ghcr.io/${owner_lc}/<repo>-backend" >> $GITHUB_OUTPUT
         env:
           OWNER: ${{ github.repository_owner }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+        run: |
+          # 'latest' = build HEAD ; un sha7 = ROLLBACK vers une image EXISTANTE.
+          # Valider l'input : un tag arbitraire ne doit jamais atteindre le shell.
+          if ! [[ "$INPUT_TAG" =~ ^([0-9a-f]{7}|latest)$ ]]; then
+            echo "tag invalide: '$INPUT_TAG' (attendu: 'latest' ou un SHA court de 7 hex)"; exit 1
+          fi
+          if [ "$INPUT_TAG" = "latest" ]; then
+            echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=$INPUT_TAG" >> "$GITHUB_OUTPUT"
+          fi
+          owner_lc="${OWNER,,}"  # GHCR exige lowercase
+          echo "image_name=ghcr.io/${owner_lc}/<repo>-backend" >> "$GITHUB_OUTPUT"
 
+      # ⚠️ Les 3 steps de build sont GARDÉS par `tag == 'latest'` : un rollback
+      # ne rebuild JAMAIS. Sans ces if, un rollback vers abc1234 rebuilderait
+      # le code HEAD et l'ÉCRASERAIT sous le tag abc1234 sur GHCR — ton
+      # "rollback" déploierait du code neuf déguisé en vieux SHA.
       - uses: docker/setup-buildx-action@v3
+        if: github.event.inputs.tag == 'latest'
       - uses: docker/login-action@v3
+        if: github.event.inputs.tag == 'latest'
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: docker/build-push-action@v6
+        if: github.event.inputs.tag == 'latest'
         with:
           context: .
           file: apps/backend/Dockerfile
@@ -106,6 +119,7 @@ jobs:
           VPS_USER: ${{ secrets.VPS_USER }}
         run: |
           # Pas de --delete pour éviter le piège data-dir.
+          ssh -i ~/.ssh/id_deploy "$VPS_USER@$VPS_HOST" 'mkdir -p /srv/<app>/ops'
           rsync -az -e 'ssh -i ~/.ssh/id_deploy' \
             ops/docker-compose.yml \
             ops/docker-compose.prod.yml \
@@ -116,7 +130,7 @@ jobs:
           scp -i ~/.ssh/id_deploy ops/Caddyfile \
             "$VPS_USER@$VPS_HOST:/tmp/<app>-Caddyfile"
           ssh -i ~/.ssh/id_deploy "$VPS_USER@$VPS_HOST" \
-            "mkdir -p /srv/<app>/ops && cat /tmp/<app>-Caddyfile > /srv/<app>/ops/Caddyfile && rm /tmp/<app>-Caddyfile"
+            "cat /tmp/<app>-Caddyfile > /srv/<app>/ops/Caddyfile && rm /tmp/<app>-Caddyfile"
 
       - name: Pull image, migrate, restart
         env:
@@ -130,14 +144,27 @@ jobs:
             "IMAGE_TAG='$IMAGE_TAG' bash -s" << 'REMOTE'
           set -euo pipefail
           cd /srv/<app>
-          echo "$IMAGE_TAG" > .deployed-tag
+          # dernier tag connu-bon : persisté dans .env APRÈS un déploiement
+          # réussi seulement → cible de retour si la nouvelle image est
+          # mauvaise, et fige les `docker compose up -d` manuels sur ce tag.
+          PREV="$(grep -E '^IMAGE_TAG=' .env | head -1 | cut -d= -f2- || true)"
 
           COMPOSE="docker compose --env-file /srv/<app>/.env \
             -f ops/docker-compose.yml \
             -f ops/docker-compose.prod.yml"
 
+          # échoue ici si le tag n'existe pas sur GHCR (rollback vers un tag inconnu)
           $COMPOSE pull backend
           $COMPOSE up -d --wait postgres
+
+          # Valider le nouveau Caddyfile AVANT de recréer quoi que ce soit.
+          # </dev/null OBLIGATOIRE : ce script arrive par stdin (bash -s <<
+          # heredoc) et `docker exec -T` attache stdin → il AVALERAIT tout le
+          # reste du script, qui « réussirait » sans jamais redémarrer le
+          # backend (cf. piège #9 — vécu).
+          if [ -n "$($COMPOSE ps -q caddy 2>/dev/null)" ]; then
+            $COMPOSE exec -T caddy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile </dev/null
+          fi
 
           # Migrate avec retry x3 pour la race pg_filenode.map (rare
           # mais intrinsèque à postgres DDL).
@@ -152,15 +179,35 @@ jobs:
             sleep 5
           done
 
-          $COMPOSE up -d --wait
+          if ! $COMPOSE up -d --wait; then
+            echo "nouvelle image unhealthy"
+            if [ -n "$PREV" ] && [ "$PREV" != "$IMAGE_TAG" ]; then
+              echo "retour automatique au tag connu-bon $PREV"
+              IMAGE_TAG="$PREV" $COMPOSE up -d --wait || echo "retour à $PREV échoué — intervention manuelle requise"
+            fi
+            exit 1
+          fi
 
-          # Recharge Caddy en place (Caddyfile peut avoir changé).
-          $COMPOSE exec -T caddy caddy validate --config /etc/caddy/Caddyfile
-          $COMPOSE exec -T caddy caddy reload --config /etc/caddy/Caddyfile
+          # succès → persister le tag connu-bon dans .env (idempotent)
+          if grep -qE '^IMAGE_TAG=' .env; then
+            sed -i "s|^IMAGE_TAG=.*|IMAGE_TAG=$IMAGE_TAG|" .env
+          else
+            printf '\nIMAGE_TAG=%s\n' "$IMAGE_TAG" >> .env
+          fi
+
+          # Recharge Caddy en place (--adapter + --force : cf. piège #8).
+          $COMPOSE exec -T caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile --force </dev/null
 
           docker image prune -f
+          # Sentinelle : si un exec a avalé la fin du script, cette ligne
+          # n'apparaît pas dans les logs → la troncature devient VISIBLE.
+          echo "REMOTE_SCRIPT_COMPLET (tag $IMAGE_TAG)"
           REMOTE
 ```
+
+Le compose prod doit référencer `image: ghcr.io/<owner>/<repo>-backend:${IMAGE_TAG:-latest}`
+pour que le tag persisté dans `/srv/<app>/.env` pilote pull ET up (cf.
+`docker-compose-overlay.md`).
 
 ## Script wrapper côté laptop
 
@@ -272,7 +319,11 @@ gh secret set VPS_SSH_KEY < ~/.ssh/<deploy-key-privée>   # le `<` est crucial, 
    mkdir -p /srv/<app>/{postgres,caddy/data,caddy/config,ops}
    chown -R 999:999 /srv/<app>/postgres  # postgres uid dans l'image alpine
    ```
-4. Crée `/srv/<app>/.env` mode 0600, root-only, avec tous les secrets prod (cf. ton runbook).
+   **Règle générale** : chaque bind mount **écrit** doit appartenir à l'uid du
+   process dans l'image. Si le backend tourne non-root (`USER bun` → uid 1000,
+   bonne pratique), son dossier data doit être `chown 1000:1000` — sinon
+   permission denied au premier write, parfois longtemps après le deploy.
+4. Crée `/srv/<app>/.env` mode 0600, root-only, avec tous les secrets prod (cf. ton runbook). ⚠️ Tout `$` littéral dans une valeur s'écrit `$$` (piège #11).
 
 ## Rollback
 
@@ -280,7 +331,17 @@ gh secret set VPS_SSH_KEY < ~/.ssh/<deploy-key-privée>   # le `<` est crucial, 
 ./ops/scripts/deploy.sh <short-sha>
 ```
 
-L'image avec ce tag doit encore exister sur GHCR. Browse : `https://github.com/<owner>/<repo>/pkgs/container/<repo>-backend`.
+Trois propriétés que le workflow ci-dessus garantit (et qu'un rollback naïf n'a pas) :
+
+1. **Jamais de rebuild** : les steps de build sont gardés par `tag == 'latest'`.
+   Le rollback pull une image **existante** sur GHCR — si elle n'existe pas, le
+   `pull` échoue proprement. Browse : `https://github.com/<owner>/<repo>/pkgs/container/<repo>-backend`.
+2. **Retour automatique** : si la nouvelle image ne devient pas healthy
+   (`up -d --wait` échoue), le script revient au dernier tag connu-bon (`IMAGE_TAG`
+   de `/srv/<app>/.env`) tout seul.
+3. **Le connu-bon survit aux ops manuelles** : `IMAGE_TAG` étant persisté dans le
+   `.env` du VPS, un `docker compose up -d` fait à la main sur le VPS reste sur
+   le tag déployé — pas de dérive vers `:latest`.
 
 Si la migration de cet ancien SHA inclut une DDL irréversible (`DROP COLUMN`, etc.), le rollback ne suffit pas — il faut une restore de DB séparée. Drizzle est forward-only par design.
 
@@ -302,6 +363,12 @@ Si la migration de cet ancien SHA inclut une DDL irréversible (`DROP COLUMN`, e
 
 8. **Caddy `reload` qui n'applique pas** : `caddy reload --config /etc/caddy/Caddyfile` peut sortir en exit 0 sans recharger le nouveau Caddyfile. Forcer l'adaptateur + le reload : `--adapter caddyfile --force`. Avec le piège #3 (inode du bind mount), c'est ce qui garantit qu'un changement de Caddyfile prend effet sans recréer le container.
 
+9. **`docker exec -T` avale le script `bash -s` (stdin slurp)** : le script remote arrive **par stdin** (`ssh … bash -s << 'REMOTE'`). Tout `docker compose exec -T` / `run -T` au milieu attache stdin au conteneur et **aspire le reste du heredoc** — bash atteint EOF et sort en **exit 0**. Symptôme vécu : run Actions vert, sentinelle absente des logs, backend jamais redémarré, `IMAGE_TAG` jamais persisté. Parade double : `</dev/null` sur **chaque** exec/run du heredoc, + une **sentinelle** `echo REMOTE_SCRIPT_COMPLET` en dernière ligne (une fin avalée devient visible dans les logs au lieu de passer pour un succès).
+
+10. **`set -euo pipefail` + pipeline légitimement vide** : un pattern du genre `( crontab -l | grep -v 'marqueur' ; echo '<nouvelle ligne>' ) | crontab -` (cron idempotent) **explose au premier run** — sans crontab existante (ou sans autre ligne que le marqueur), `crontab -l | grep -v` sort non-zéro et pipefail tue le script. Ajouter `|| true` sur le pipeline de lecture : `( crontab -l 2>/dev/null | grep -v 'marqueur' || true ; echo '…' ) | crontab -`. Généralisable : tout `grep`/`ls` d'un état « peut-être vide » dans un script pipefail doit être toléré explicitement.
+
+11. **`$` littéral dans `/srv/<app>/.env`** : compose interpole les valeurs d'`env_file` — un secret contenant `$` (mot de passe, hash) est tronqué/vidé silencieusement. L'écrire `$$`. Détails et symptôme vécu dans `docker-compose-overlay.md` (section env_file).
+
 ## Quand passer à autre chose
 
 Ce pattern tient jusqu'à ~10K users et un seul VPS. Au-delà :
@@ -313,4 +380,4 @@ Mais pour solo-dev pré-PMF, ce stack est optimal.
 
 ---
 
-**Dernière vérif** : 2026-06-28 (en prod ; ajout du deploy front/SPA séparé + `make deploy`).
+**Dernière vérif** : 2026-07-03 (premiers runs réels du workflow complet en prod : rollback sans rebuild + retour auto au tag connu-bon + `IMAGE_TAG` persisté ; pièges #9 stdin-slurp, #10 pipefail/crontab et #11 `$$` tous VÉCUS ce jour-là).
