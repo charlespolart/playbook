@@ -14,7 +14,8 @@ Quand tu apprends quelque chose qui mérite d'être capturé (bug récurrent, co
 
 Classement par **où le problème se manifeste** : `infrastructure/` = le
 self-host (deploy, compose), `mobile/` = tout le Flutter/iOS/Android,
-`third-party/` = les services externes.
+`third-party/` = les services externes, `security/` = ce qui protège (code,
+VPS, données), `legal/` = ce que la loi exige (RGPD, mentions légales, stores).
 
 ```
 playbook/
@@ -23,6 +24,13 @@ playbook/
 ├── infrastructure/                        # Self-host : Docker, CI/CD, VPS
 │   ├── github-actions-deploy.md           # Build → GHCR → SSH → pull ; rollback sans rebuild + retour auto
 │   └── docker-compose-overlay.md          # Base env-neutre + overlays dev/prod ; env_file, $$, grace period
+├── security/                              # Transverse : code, VPS, données
+│   ├── app-security.md                    # Checklist code : injection, IDOR, authn, headers, uploads, deps
+│   ├── vps-hardening.md                   # SSH, ufw (+ piège Docker qui le bypasse), fail2ban, Docker
+│   └── data-protection.md                 # Hash vs chiffrement vs clair ; secrets ; backups chiffrés (age)
+├── legal/                                 # Conformité FR/UE
+│   ├── rgpd.md                            # Bases légales, registre, droits, rétention, cookies, violation
+│   └── conformite-site-et-app.md          # Mentions légales, CGV, stores (Apple/Play), EAA, emails
 ├── mobile/                                # Flutter, iOS, Android
 │   ├── flutter-mobile-build.md            # Makefile + Fastfile + dart-defines partagés
 │   ├── android-release-signing.md         # Keystore + key.properties + Play App Signing (2 SHA !), keytool via JBR
@@ -56,6 +64,13 @@ Le point d'entrée le plus rapide : tu observes ça → lis cette fiche.
 | Signature device iOS impossible / app sous le mauvais compte | `mobile/apple-team-id-and-bundle-id.md` (demander, jamais deviner) |
 | Tests backend en 401 aléatoires avec dotenv | `mobile/flutter-mobile-build.md` (`\|\|=` vs `??=` sur env vide) |
 | `Failed query` sur une colonne qui existe pourtant dans le code | `project-structure.md` (dérive de schéma local — `make db-migrate`) |
+| Nouveau VPS / premier passage en prod d'un projet | `security/vps-hardening.md` (checklist jour 1) + `security/app-security.md` (checklist finale) |
+| Port DB joignable depuis internet alors que ufw est censé bloquer | `security/vps-hardening.md` (Docker bypasse ufw) |
+| Nouvel endpoint / formulaire / upload qui accepte de l'input user | `security/app-security.md` |
+| On s'apprête à stocker un token tiers / une donnée sensible / un mdp | `security/data-protection.md` (hash vs chiffrement vs clair) |
+| « Il nous faut une bannière cookies ? » | `legal/rgpd.md` § cookies (souvent : non) |
+| Un user demande l'export ou la suppression de ses données | `legal/rgpd.md` (droits — délai 1 mois, cascade sous-traitants) |
+| Rejet App Store / Play sur la privacy ou la suppression de compte | `legal/conformite-site-et-app.md` |
 
 Chaque fiche garde sa section « Symptômes à reconnaître » plus détaillée ;
 cette table n'est que l'aiguillage. **Une nouvelle fiche = une ligne ici.**
