@@ -39,7 +39,8 @@ playbook/
 │   ├── flutter-inapp-legal-webview.md     # Liens légaux en WebView in-app, pas Safari
 │   └── flutter-ios26-liquid-glass-keyboard.md # Coins blancs clavier iOS 26 = resize:false sur TOUTE la chaîne Scaffold
 └── third-party/                           # Intégrations SaaS / API externes
-    └── revenuecat.md                      # webhook: pas de HMAC, Authorization header
+    ├── revenuecat.md                      # webhook: pas de HMAC, Authorization header
+    └── sign-in-apple-google.md            # Better Auth idToken-only : Apple sans .p8 ; clock-skew 5s, cookie __Secure-, CSRF Dio
 ```
 
 ## Index par symptôme
@@ -55,6 +56,9 @@ Le point d'entrée le plus rapide : tu observes ça → lis cette fiche.
 | Crash prod *"mount a directory onto a file"* | `infrastructure/docker-compose-overlay.md` (bind mount dev qui fuite) |
 | `/api/*` renvoie le HTML du SPA | `infrastructure/github-actions-deploy.md` piège #7 |
 | Webhooks RevenueCat tous en 401 | `third-party/revenuecat.md` (pas de HMAC — header Authorization statique) |
+| Sign-in Apple/Google en `401 INVALID_TOKEN` (skew d'horloge d'1 s) | `third-party/sign-in-apple-google.md` (override `verifyIdToken`, tolérance 5s) |
+| « Faut-il une clé `.p8` pour Sign in with Apple ? » | `third-party/sign-in-apple-google.md` (non en flux natif idToken ; révocation = nuance non-bloquante) |
+| Session perdue au cold-boot TestFlight (auth) | `third-party/sign-in-apple-google.md` (`useSecureCookies:false` + préfixe `__Secure-`) |
 | Build TestFlight sans paywall / clé RC vide | `mobile/flutter-mobile-build.md` (dart-defines absents du lane Fastlane) |
 | Google Sign-In `DEVELOPER_ERROR` en prod Android, OK en debug | `mobile/android-release-signing.md` (2 SHA — Play App Signing) |
 | `keytool` : *"Unable to locate a Java Runtime"* | `mobile/android-release-signing.md` (JBR Android Studio) |
