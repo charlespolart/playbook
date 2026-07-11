@@ -135,6 +135,15 @@ couches : même si une barrière saute, la suivante limite les dégâts.
   client. Lire `X-Forwarded-For` — acceptable **uniquement** parce que Caddy
   est le seul point d'entrée (le header est réécrit par lui) ; le jour où le
   backend est exposé direct, ce header devient spoofable.
+- **Piège d'ordre des middlewares (vécu, Listable 2026-07)** : un keyer « par
+  userId sinon IP » ne marche que si la session est **chargée avant** le
+  bucket. Un rate-limit enregistré app-level tourne avant le `requireAuth()`
+  des sous-routers → `c.get("userId")` est toujours vide et tout le monde
+  partage le budget IP (NAT = faux positifs, et la limite par compte n'existe
+  pas). Fix : un `optionalAuth()` app-level AVANT le bucket, et `requireAuth`
+  réutilise le contexte déjà chargé (un seul `getSession` par requête). Le bug
+  est **silencieux** : les 429 partent quand même, juste sur la mauvaise clé —
+  tester avec deux comptes derrière la même IP.
 
 ## Secrets côté code
 
@@ -150,7 +159,9 @@ couches : même si une barrière saute, la suivante limite les dégâts.
 
 ## Dépendances (A03:2025 — supply chain)
 
-- Lockfile committé + `--frozen-lockfile` en CI (déjà le cas).
+- Lockfile committé + `--frozen-lockfile` en CI. **Ne pas croire que c'est
+  « déjà le cas »** : audité 2026-07-12, la CI de Listable faisait un
+  `bun install` nu depuis le début — vérifier le workflow, pas la doctrine.
 - `bun audit` (ou Dependabot alerts sur le repo GitHub — gratuit, à activer).
 - Avant d'ajouter une dep : dernier commit, downloads, nombre de deps
   transitives. Une dep = du code tiers qui tourne avec les droits du backend.

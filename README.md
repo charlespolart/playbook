@@ -37,9 +37,11 @@ playbook/
 │   ├── ios-push-entitlements.md           # aps-environment dev/prod via 2 fichiers entitlements
 │   ├── apple-team-id-and-bundle-id.md     # Team ID + bundle id : TOUJOURS demander à Charles, jamais deviner
 │   ├── flutter-inapp-legal-webview.md     # Liens légaux en WebView in-app, pas Safari
-│   └── flutter-ios26-liquid-glass-keyboard.md # Coins blancs clavier iOS 26 = resize:false sur TOUTE la chaîne Scaffold
+│   ├── flutter-ios26-liquid-glass-keyboard.md # Coins blancs clavier iOS 26 = resize:false sur TOUTE la chaîne Scaffold
+│   └── flutter-monospace-tabular-figures.md # 'monospace' ne résout pas sur iOS ; chiffres alignés = FontFeature.tabularFigures
 └── third-party/                           # Intégrations SaaS / API externes
     ├── revenuecat.md                      # webhook: pas de HMAC, Authorization header
+    ├── sentry.md                          # Sentry vs Crashlytics (full-stack, EU, quota) ; symbols + beforeSend
     └── sign-in-apple-google.md            # Better Auth idToken-only : Apple sans .p8 ; clock-skew 5s, cookie __Secure-, CSRF Dio
 ```
 
@@ -64,6 +66,8 @@ Le point d'entrée le plus rapide : tu observes ça → lis cette fiche.
 | `keytool` : *"Unable to locate a Java Runtime"* | `mobile/android-release-signing.md` (JBR Android Studio) |
 | Push OK en `flutter run`, morts en TestFlight | `mobile/ios-push-entitlements.md` (aps-environment) |
 | Coins blancs au-dessus du clavier iOS 26 | `mobile/flutter-ios26-liquid-glass-keyboard.md` (resize sur TOUTE la chaîne) |
+| Texte `monospace` OK Android, police par défaut sur iOS / chiffres qui « dansent » | `mobile/flutter-monospace-tabular-figures.md` |
+| Rate limit « par user » qui ne limite jamais par user (clé toujours IP) | `security/app-security.md` § rate limiting (ordre des middlewares) |
 | Tap "Terms"/"Privacy" éjecte dans Safari | `mobile/flutter-inapp-legal-webview.md` |
 | Signature device iOS impossible / app sous le mauvais compte | `mobile/apple-team-id-and-bundle-id.md` (demander, jamais deviner) |
 | Tests backend en 401 aléatoires avec dotenv | `mobile/flutter-mobile-build.md` (`\|\|=` vs `??=` sur env vide) |
@@ -72,6 +76,8 @@ Le point d'entrée le plus rapide : tu observes ça → lis cette fiche.
 | Port DB joignable depuis internet alors que ufw est censé bloquer | `security/vps-hardening.md` (Docker bypasse ufw) |
 | Nouvel endpoint / formulaire / upload qui accepte de l'input user | `security/app-security.md` |
 | On s'apprête à stocker un token tiers / une donnée sensible / un mdp | `security/data-protection.md` (hash vs chiffrement vs clair) |
+| « L'app crashe chez des users et on ne l'apprend jamais » / choix Sentry vs Crashlytics | `third-party/sentry.md` |
+| Stack traces Sentry mobile illisibles (adresses hexa) | `third-party/sentry.md` (symbols pas uploadés) |
 | « Il nous faut une bannière cookies ? » | `legal/rgpd.md` § cookies (souvent : non) |
 | Un user demande l'export ou la suppression de ses données | `legal/rgpd.md` (droits — délai 1 mois, cascade sous-traitants) |
 | Rejet App Store / Play sur la privacy ou la suppression de compte | `legal/conformite-site-et-app.md` |

@@ -79,11 +79,25 @@ c'est normal, il n'est pas secret.
 Les trois adjectifs sont obligatoires : un backup sur le VPS lui-même n'est
 pas un backup (disque mort = tout perdu ; VPS compromis = backups compromis).
 
-**Outil de chiffrement : [age](https://github.com/FiloSottile/age)** (moderne,
-simple, remplace gpg pour ce cas). Le point élégant : paire de clés générée
-sur le **laptop** (`age-keygen`), seule la clé **publique** va sur le VPS →
-un VPS compromis peut faire de nouveaux backups mais ne peut pas **lire** les
-existants. La clé privée ne touche jamais le VPS.
+**Deux voies validées — choisir selon le besoin, pas mélanger :**
+
+| | pg_dump + age + rclone (ci-dessous) | pgBackRest (voie Listable, `ops/pgbackrest/`) |
+|---|---|---|
+| Granularité | snapshot quotidien (on perd jusqu'à 24 h) | WAL archiving continu → PITR à la minute |
+| Complexité | 10 lignes de bash, zéro service | service + config + stanza, mais restore outillé |
+| Chiffrement | age, clé privée jamais sur le VPS | `repo1-cipher-type=aes-256-cbc` intégré |
+| Quand | side-projects, données reconstructibles | prod avec users payants, données irremplaçables |
+
+Listable a une config pgBackRest complète (S3/R2 + rétention + cipher) prête
+dans `ops/pgbackrest/` — **non activée** tant que pas de 1er user payant
+(décision 2026-04-29) ; en attendant c'est un `pg_dump` local NON conforme qui
+tourne. À l'activation, c'est pgBackRest la cible, pas le script ci-dessous.
+
+**Voie simple — chiffrement [age](https://github.com/FiloSottile/age)**
+(moderne, simple, remplace gpg pour ce cas). Le point élégant : paire de clés
+générée sur le **laptop** (`age-keygen`), seule la clé **publique** va sur le
+VPS → un VPS compromis peut faire de nouveaux backups mais ne peut pas
+**lire** les existants. La clé privée ne touche jamais le VPS.
 
 ```bash
 #!/usr/bin/env bash
@@ -141,4 +155,5 @@ dans vos backups ? » lors d'une demande d'effacement (cf. `legal/rgpd.md`).
 
 ---
 
-**Dernière vérif** : 2026-07-08 (rédaction initiale).
+**Dernière vérif** : 2026-07-12 (réconciliation avec la voie pgBackRest de
+Listable — la fiche l'ignorait alors qu'une config complète existait).
