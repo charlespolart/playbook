@@ -26,8 +26,9 @@ playbook/
 │   └── docker-compose-overlay.md          # Base env-neutre + overlays dev/prod ; env_file, $$, grace period
 ├── security/                              # Transverse : code, VPS, données
 │   ├── app-security.md                    # Checklist code : injection, IDOR, authn, headers, uploads, deps
-│   ├── vps-hardening.md                   # SSH, ufw (+ piège Docker qui le bypasse), fail2ban, Docker
-│   └── data-protection.md                 # Hash vs chiffrement vs clair ; secrets ; backups chiffrés (age)
+│   ├── vps-hardening.md                   # SSH, ufw (+ piège Docker qui le bypasse), fail2ban, clé CI dédiée
+│   ├── data-protection.md                 # Hash vs chiffrement vs clair ; secrets ; vérif des droits en négatif
+│   └── pgbackrest.md                      # Backups PITR chiffrés : pièges d'activation + test de restore réel
 ├── legal/                                 # Conformité FR/UE
 │   ├── rgpd.md                            # Bases légales, registre, droits, rétention, cookies, violation
 │   └── conformite-site-et-app.md          # Mentions légales, CGV, stores (Apple/Play), EAA, emails
@@ -74,6 +75,12 @@ Le point d'entrée le plus rapide : tu observes ça → lis cette fiche.
 | `Failed query` sur une colonne qui existe pourtant dans le code | `project-structure.md` (dérive de schéma local — `make db-migrate`) |
 | Nouveau VPS / premier passage en prod d'un projet | `security/vps-hardening.md` (checklist jour 1) + `security/app-security.md` (checklist finale) |
 | Port DB joignable depuis internet alors que ufw est censé bloquer | `security/vps-hardening.md` (Docker bypasse ufw) |
+| Un scan de ports annonce « tout ouvert » (Redis, Postgres…) | `security/vps-hardening.md` (le scan depuis le laptop ment — test de bannière) |
+| `fail2ban` installé mais `systemctl status` en `failed` | `security/vps-hardening.md` (jail sshd sans `/var/log/auth.log` → `backend = systemd`) |
+| Un token d'invitation / reset se retrouve en clair dans les logs ou Sentry | `security/app-security.md` § secret dans l'URL (la redaction ne voit que les clés) |
+| Backups qui « réussissent » mais archivage WAL mort après un deploy | `security/pgbackrest.md` + `infrastructure/github-actions-deploy.md` piège #12 |
+| `archive_command` en `Permission denied` / postgres qui redémarre en boucle | `security/pgbackrest.md` (uid 70, catch-22 de la stanza) |
+| `/healthz` vert alors que le service est cassé | `infrastructure/github-actions-deploy.md` piège #13 (liveness vs readiness) |
 | Nouvel endpoint / formulaire / upload qui accepte de l'input user | `security/app-security.md` |
 | On s'apprête à stocker un token tiers / une donnée sensible / un mdp | `security/data-protection.md` (hash vs chiffrement vs clair) |
 | « L'app crashe chez des users et on ne l'apprend jamais » / choix Sentry vs Crashlytics | `third-party/sentry.md` |

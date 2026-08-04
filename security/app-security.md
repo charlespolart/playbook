@@ -41,6 +41,25 @@ couches : même si une barrière saute, la suivante limite les dégâts.
 - **Jamais** `db.insert(users).values(body)` ni `db.update(...).set(body)` avec
   le body brut : un client ajoute `"role": "admin"` ou `"credits": 9999` et ça
   passe. Toujours passer par l'objet **explicite** sorti du schéma zod.
+- **Le point aveugle : les endpoints de sync / bulk / import.** Un endpoint
+  REST écrit 5 champs nommés, on le relit vite. Un endpoint de synchro reçoit
+  « une ressource » générique — le schéma finit en
+  `payload: z.record(z.string(), z.unknown())` et le handler recopie **toutes**
+  les clés dans l'insert ORM. Forcer `id`/`ownerId`/`updatedAt` par-dessus ne
+  suffit pas : toute **autre** colonne serveur reste écrivable (vécu :
+  `isShared`, qui ne devait basculer que par le flux de partage), et les bornes
+  `.max()/.trim()` des chemins REST sont contournées. Pas d'IDOR si l'ownership
+  est vérifié — c'est une faille d'**intégrité**, plus discrète et donc plus
+  durable. Parade : une **allowlist de colonnes dérivée du schéma**, pour
+  qu'elle ne dérive jamais :
+  ```ts
+  const SERVER_OWNED = new Set(["id", "ownerId", "isShared", "createdAt",
+                                "updatedAt", "deletedAt", "originDevice"]);
+  const writable = new Set(
+    Object.keys(getTableColumns(table)).filter((c) => !SERVER_OWNED.has(c)),
+  );
+  // puis: ignorer toute clé du payload absente de `writable`
+  ```
 - Webhooks entrants = input hostile aussi : vérifier l'authentification du
   webhook AVANT de parser (cf. `third-party/revenuecat.md` — header
   `Authorization` statique, pas de HMAC).
@@ -54,7 +73,14 @@ couches : même si une barrière saute, la suivante limite les dégâts.
   invalidation **côté serveur** au logout (supprimer la row session, pas juste
   le cookie).
 - Si JWT : algorithme **fixé** à la vérification (jamais lu depuis le header du
-  token), secret ≥ 256 bits, `exp` courte + refresh token révocable. Le payload
+  token), secret ≥ 256 bits, `exp` courte + refresh token révocable.
+  La forme qu'on trouve en vrai n'est pas `alg: none` — c'est
+  ``algorithms: [decodeProtectedHeader(token).alg]`` (vécu 2026-08) : le code
+  *croit* épingler alors qu'il **renvoie au token le droit de choisir**. Sur une
+  vérif OIDC via JWKS distant c'est peu exploitable (le JWKS ne sert que des
+  clés RSA/EC, une confusion HMAC meurt sur un mismatch de type de clé), mais
+  la correction est gratuite : `algorithms: ["RS256", "ES256"]` en dur, plus un
+  rejet préalable si l'`alg` annoncé n'est pas dans la liste. Le payload
   est **lisible par tous** (base64, pas chiffré) — jamais de donnée sensible
   dedans. Piège structurel : un JWT pur ne se révoque pas avant son `exp` → si
   besoin d'un "logout partout", il faut de l'état serveur de toute façon.
@@ -156,6 +182,23 @@ couches : même si une barrière saute, la suivante limite les dégâts.
   backend pourrait porter à sa place.
 - Tokens côté mobile : Keychain/Keystore (`flutter_secure_storage`), pas
   SharedPreferences.
+- **Flutter : `debugPrint` s'exécute AUSSI en release** (c'est un `print`
+  throttlé, pas un no-op — contrairement à ce que le nom laisse croire). Tout
+  `debugPrint` qui dumpe un body de réponse ou un payload part donc dans
+  logcat / os_log en production. Garder les logs verbeux derrière
+  `if (kDebugMode)`, et grep les `debugPrint` avant release.
+- **Permissions Android/iOS : ne déclarer que ce qui est réellement demandé par
+  le code.** Vérifier dans le **plugin natif**, pas dans son README : un
+  `image_picker` moderne ne réclame que `CAMERA` (la galerie passe par un
+  picker système qui accorde l'accès par URI), donc `READ_MEDIA_IMAGES` est
+  superflue — et Play Console la fera justifier. Idem côté iOS, une clé
+  `NSFaceIDUsageDescription` sans aucune biométrie dans l'app, ou une string
+  caméra qui parle de scan de codes-barres inexistant, sont des frictions
+  gratuites en App Review.
+- **`android:allowBackup`** vaut `true` par défaut : les données de l'app
+  partent dans Auto Backup et sont extractibles par `adb backup`. Le mettre à
+  `false` (ou fournir des `dataExtractionRules`) dès que l'app stocke autre
+  chose que du cache.
 
 ## Dépendances (A03:2025 — supply chain)
 
@@ -175,15 +218,57 @@ couches : même si une barrière saute, la suivante limite les dégâts.
 - Logger les **échecs** d'auth et les 403 — c'est ce qui permet de voir un
   bruteforce pendant qu'il a lieu et pas après.
 
+### Un secret dans l'URL échappe à la redaction (vécu, 2026-07)
+
+La `redact` d'un logger (pino & co) masque des **clés d'objet**
+(`req.headers.authorization`, `*.token`). Elle ne verra **jamais** un secret
+encapsulé dans une *valeur string* — typiquement un token porteur d'accès qui
+voyage dans le **chemin** : `/i/:token`, `/invitations/:token/preview`,
+`/reset/:token`, `/unsubscribe/:token`. Le logger de requêtes écrit
+`path: c.req.path` et le secret part en clair dans journald… et dans Sentry.
+
+Deux règles :
+
+1. **Masquer le segment à la source**, avant qu'il n'atteigne le log :
+   ```ts
+   export function redactPath(path: string): string {
+     return path
+       .replace(/^(\/i)\/[^/]+/, "$1/[redacted]")
+       .replace(/(\/invitations\/by-token)\/[^/]+/, "$1/[redacted]");
+   }
+   ```
+2. **Recenser TOUS les sinks**, c'est là que ça se joue. Sur un cas réel il y
+   en avait **cinq**, et une première passe n'en avait couvert que trois : le
+   logger de requêtes, le handler `notFound`, le `onError`… mais aussi le
+   **middleware de timeout** et le **middleware Sentry** — ce dernier montant
+   avant `onError` et expédiant donc le token à un **service externe**. Les
+   deux manquants ont été trouvés par une relecture dédiée, pas par le premier
+   passage.
+   ```bash
+   # doit ne rien renvoyer
+   grep -rn "req\.path" src/ | grep -v redactPath
+   ```
+
+Corollaire de conception : un secret porteur d'accès a moins de surface dans un
+**header** ou un **body POST** que dans un chemin ou une query string (chemins
+et query strings finissent dans les access logs, les referers, l'historique des
+proxys). Si le design le permet, éviter le token dans l'URL — un audit voisin a
+trouvé le même problème sur une **WebSocket** (`ws://…?token=…`) et a dû
+migrer vers un premier message `{"type":"auth","token":…}`, avec période de
+double compatibilité car les apps mobiles déjà installées continuent d'envoyer
+l'ancien format pendant des mois.
+
 ## Checklist avant mise en prod
 
 - [ ] Chaque endpoint : zod `.strict()` + filtre ownership
+- [ ] Endpoints sync/bulk/import : allowlist de colonnes, pas de `z.unknown()` recopié
 - [ ] `Bun.password` pour les hash, sessions HttpOnly/Secure/SameSite
 - [ ] Rate limit sur login/signup/forgot
 - [ ] Headers Caddy posés, vérifiés sur securityheaders.com
 - [ ] CORS = liste explicite
 - [ ] Aucun secret dans le repo ni dans le binaire mobile (gitleaks passe)
 - [ ] Erreurs prod génériques, logs sans PII
+- [ ] Aucun token dans un chemin loggé : `grep -rn "req\.path" src/ | grep -v redact` vide
 - [ ] `security/vps-hardening.md` déroulée côté infra
 
 ## Liens
@@ -195,5 +280,7 @@ couches : même si une barrière saute, la suivante limite les dégâts.
 
 ---
 
-**Dernière vérif** : 2026-07-08 (rédaction initiale ; Top 10:2025 final
-vérifié en ligne ce jour).
+**Dernière vérif** : 2026-08-04 (audits croisés de 2 backends en prod :
+secrets d'invitation en clair dans 5 sinks de logs dont Sentry, mass assignment
+sur un endpoint de sync, `algorithms: [alg]` lu depuis le token, `debugPrint`
+de PII en release, IDOR réel sur un endpoint de reorder côté projet voisin).

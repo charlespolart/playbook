@@ -120,6 +120,9 @@ jobs:
         run: |
           # Pas de --delete pour éviter le piège data-dir.
           ssh -i ~/.ssh/id_deploy "$VPS_USER@$VPS_HOST" 'mkdir -p /srv/<app>/ops'
+          # Tout overlay prod actif voyage ICI **et** doit être dans $COMPOSE
+          # plus bas (piège #12) — avec son contexte de build et les scripts
+          # appelés par le cron hôte.
           rsync -az -e 'ssh -i ~/.ssh/id_deploy' \
             ops/docker-compose.yml \
             ops/docker-compose.prod.yml \
@@ -369,6 +372,23 @@ Si la migration de cet ancien SHA inclut une DDL irréversible (`DROP COLUMN`, e
 
 11. **`$` littéral dans `/srv/<app>/.env`** : compose interpole les valeurs d'`env_file` — un secret contenant `$` (mot de passe, hash) est tronqué/vidé silencieusement. L'écrire `$$`. Détails et symptôme vécu dans `docker-compose-overlay.md` (section env_file).
 
+12. **Un overlay rsyncé mais absent des commandes `compose` (vécu 2026-08, backups tués en silence)** : dès qu'une fonctionnalité prod vit dans un overlay opt-in (`docker-compose.prod-backup.yml` pour l'archivage WAL, par exemple), il ne suffit **pas** de l'envoyer sur le VPS. S'il n'est pas dans le `-f` de la variable `$COMPOSE`, le `up -d --wait postgres` du deploy **recrée le service depuis l'overlay de base** — image vanilla, `archive_mode` perdu. Rien n'échoue : le deploy est vert, la DB tourne, les backups continuent même à « réussir »… et on l'apprend au premier restore. Règle : **tout overlay actif en prod appartient à `$COMPOSE`**, et son `--env-file` avec.
+    ```bash
+    COMPOSE="docker compose \
+      --env-file /srv/<app>/.env \
+      --env-file /srv/<app>/.env.pgbackrest \
+      -f ops/docker-compose.yml \
+      -f ops/docker-compose.prod.yml \
+      -f ops/docker-compose.prod-backup.yml"
+    ```
+    Corollaire souvent oublié : si l'overlay contient un `build:`, le **contexte de build** doit voyager avec (`rsync ops/pgbackrest`), sinon une box fraîche ou un `docker image prune` casse le deploy — et les changements de config (`pgbackrest.conf`) n'atteignent jamais le VPS. Même chose pour les scripts appelés par le cron hôte (`rsync ops/scripts` + `chmod +x`).
+    **Vérif** : `docker compose <tous les -f> config | grep -E "image:|archive_mode"` doit montrer l'image et les options attendues.
+
+13. **Recréer un service casse les pools de ceux qui en dépendent — et `/healthz` ne le voit pas (vécu 2026-08)** : recréer le conteneur postgres laisse le backend avec des connexions mortes dans son pool. Il répond **200 à `/healthz`** (le process vit, il sert du HTTP) pendant que la base est injoignable. Seul `/readyz` bascule à `{"ready":false,"checks":{"database":false}}`. C'est la distinction **liveness vs readiness** : `healthz` répond « le process tourne », `readyz` répond « je peux servir une requête réelle ». Un monitoring qui ne surveille que le premier voit du vert pendant une panne totale.
+    - **Exposer les deux**, et faire porter l'alerting sur `readyz`.
+    - Après tout `up -d`/`restart` d'un service **dont d'autres dépendent**, enchaîner par un `up -d` des dépendants, puis vérifier `readyz` — pas `healthz`.
+    - `up -d --wait` ne sauve pas : il attend le healthcheck **du conteneur recréé**, pas la reconvergence de ses consommateurs.
+
 ## Quand passer à autre chose
 
 Ce pattern tient jusqu'à ~10K users et un seul VPS. Au-delà :
@@ -380,4 +400,6 @@ Mais pour solo-dev pré-PMF, ce stack est optimal.
 
 ---
 
-**Dernière vérif** : 2026-07-03 (premiers runs réels du workflow complet en prod : rollback sans rebuild + retour auto au tag connu-bon + `IMAGE_TAG` persisté ; pièges #9 stdin-slurp, #10 pipefail/crontab et #11 `$$` tous VÉCUS ce jour-là).
+**Dernière vérif** : 2026-08-04 (ajout du piège #12 — overlay backup rsyncé mais
+absent de `$COMPOSE`, trouvé en comparant deux déploiements : le prochain deploy
+aurait recréé postgres sans archivage WAL, sans aucun signal).
