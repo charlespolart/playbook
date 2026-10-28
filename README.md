@@ -34,6 +34,7 @@ playbook/
 │   └── conformite-site-et-app.md          # Mentions légales, CGV, stores (Apple/Play), EAA, emails
 ├── mobile/                                # Flutter, iOS, Android
 │   ├── flutter-mobile-build.md            # Makefile + Fastfile + dart-defines partagés
+│   ├── flutter-local-backend-from-device.md # Debug sur vrai téléphone : adb reverse (Android) / nom Bonjour (iPhone), jamais d'IP
 │   ├── android-release-signing.md         # Keystore + key.properties + Play App Signing (2 SHA !), keytool via JBR
 │   ├── ios-push-entitlements.md           # aps-environment dev/prod via 2 fichiers entitlements
 │   ├── apple-team-id-and-bundle-id.md     # Team ID + bundle id : TOUJOURS demander à Charles, jamais deviner
@@ -63,6 +64,9 @@ Le point d'entrée le plus rapide : tu observes ça → lis cette fiche.
 | « Faut-il une clé `.p8` pour Sign in with Apple ? » | `third-party/sign-in-apple-google.md` (non en flux natif idToken ; révocation = nuance non-bloquante) |
 | Session perdue au cold-boot TestFlight (auth) | `third-party/sign-in-apple-google.md` (`useSecureCookies:false` + préfixe `__Secure-`) |
 | Build TestFlight sans paywall / clé RC vide | `mobile/flutter-mobile-build.md` (dart-defines absents du lane Fastlane) |
+| `Connection refused` sur tout en `flutter run` sur un vrai téléphone (inscription, Google…) | `mobile/flutter-local-backend-from-device.md` (`localhost` = le téléphone ; adb reverse / `.local`) |
+| iPhone : `Failed host lookup 'xxx.local' (errno = 8)` alors que le Mac l'annonce | `mobile/flutter-local-backend-from-device.md` (permission « Réseau local », même Wi‑Fi) |
+| Sign-In Google se ferme sans message sur un build release **local** Android (`UNREGISTERED_ON_API_CONSOLE`) | `mobile/android-release-signing.md` (2 SHA : clé d'upload non déclarée) |
 | Google Sign-In `DEVELOPER_ERROR` en prod Android, OK en debug | `mobile/android-release-signing.md` (2 SHA — Play App Signing) |
 | `keytool` : *"Unable to locate a Java Runtime"* | `mobile/android-release-signing.md` (JBR Android Studio) |
 | Push OK en `flutter run`, morts en TestFlight | `mobile/ios-push-entitlements.md` (aps-environment) |
