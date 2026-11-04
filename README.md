@@ -15,7 +15,9 @@ Quand tu apprends quelque chose qui mérite d'être capturé (bug récurrent, co
 Classement par **où le problème se manifeste** : `infrastructure/` = le
 self-host (deploy, compose), `mobile/` = tout le Flutter/iOS/Android,
 `third-party/` = les services externes, `security/` = ce qui protège (code,
-VPS, données), `legal/` = ce que la loi exige (RGPD, mentions légales, stores).
+VPS, données), `legal/` = ce que la loi exige (RGPD, mentions légales, stores),
+`desktop/` = une app macOS distribuée hors App Store (signature, notarisation,
+mise à jour automatique, release).
 
 ```
 playbook/
@@ -41,6 +43,10 @@ playbook/
 │   ├── flutter-inapp-legal-webview.md     # Liens légaux en WebView in-app, pas Safari
 │   ├── flutter-ios26-liquid-glass-keyboard.md # Coins blancs clavier iOS 26 = resize:false sur TOUTE la chaîne Scaffold
 │   └── flutter-monospace-tabular-figures.md # 'monospace' ne résout pas sur iOS ; chiffres alignés = FontFeature.tabularFigures
+├── desktop/                               # App macOS hors App Store (vécu sur Mumo)
+│   ├── macos-distribution-hors-store.md   # Developer ID + notarisation + DMG appdmg ; Metal Toolchain, cache ANE purgé
+│   ├── sparkle-auto-update.md             # Sparkle 2 : repo public séparé, feed raw (PAS Pages), clé EdDSA, item d'appcast
+│   └── release-runbook-pattern.md         # Script test-par-défaut / --publish à 3 confirmations, garde-fou bump, idempotence
 └── third-party/                           # Intégrations SaaS / API externes
     ├── revenuecat.md                      # webhook: pas de HMAC, Authorization header
     ├── sentry.md                          # Sentry vs Crashlytics (full-stack, EU, quota) ; symbols + beforeSend
@@ -92,6 +98,12 @@ Le point d'entrée le plus rapide : tu observes ça → lis cette fiche.
 | « Il nous faut une bannière cookies ? » | `legal/rgpd.md` § cookies (souvent : non) |
 | Un user demande l'export ou la suppression de ses données | `legal/rgpd.md` (droits — délai 1 mois, cascade sous-traitants) |
 | Rejet App Store / Play sur la privacy ou la suppression de compte | `legal/conformite-site-et-app.md` |
+| `cannot execute tool 'metal' due to missing Metal Toolchain` sur l'archive Release (le Debug passe) | `desktop/macos-distribution-hors-store.md` piège 1 (`xcodebuild -downloadComponent MetalToolchain`) |
+| Modèle Core ML qui charge en minutes au lieu de secondes après un disque plein | `desktop/macos-distribution-hors-store.md` piège 2 (cache ANE purgé, pas le build) |
+| L'app installée ne propose jamais la mise à jour | `desktop/sparkle-auto-update.md` (`CFBundleVersion` pas incrémenté) |
+| Appcast servi sous le domaine perso de l'auteur | `desktop/sparkle-auto-update.md` (GitHub Pages applique le custom domain du compte → feed raw) |
+| Update refusée « signature invalide » / item jamais détecté en test local | `desktop/sparkle-auto-update.md` (clé privée, `edSignature`, `xml:lang`) |
+| Première app macOS hors store / « comment on publie une release desktop ? » | `desktop/macos-distribution-hors-store.md` + `desktop/release-runbook-pattern.md` |
 
 Chaque fiche garde sa section « Symptômes à reconnaître » plus détaillée ;
 cette table n'est que l'aiguillage. **Une nouvelle fiche = une ligne ici.**
