@@ -102,6 +102,11 @@ l'app **propose et installe** N, et qu'une signature altérée est refusée.
 - Item présent dans l'appcast mais jamais détecté en test local →
   `sparkle:edSignature` bidon, ou `<description>` sans `xml:lang`.
 - Appcast servi sous le domaine perso de l'auteur → GitHub Pages activé.
+- `**gras**` affiché littéralement dans la fenêtre de mise à jour → la
+  `<description>` est du **HTML**, pas du Markdown : le générateur d'appcast
+  doit convertir (`**x**` → `<strong>x</strong>`) après l'échappement HTML ;
+  GitHub, lui, rend le Markdown tel quel (vécu 0.3.0, corrigé à la main dans
+  le flux puis dans le script).
 - `sign_update introuvable` → package Sparkle non résolu (relancer
   `xcodegen generate` / un build).
 
