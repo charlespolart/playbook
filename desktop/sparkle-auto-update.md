@@ -90,7 +90,9 @@ python3 -m http.server 8000      # dans un dossier contenant un appcast de test
 # relancer l'app, attendre 10 s, lire le journal de diagnostic (« update: … »)
 defaults delete <bundle-id> <FeedURLOverride> ; defaults delete <bundle-id> SUSkippedVersion
 ```
-`http` en local déclenche un avertissement ATS mais le flux charge. Le vrai
+`http` en local déclenche un avertissement ATS mais le flux charge ; macOS peut
+aussi afficher un pop-up « réseau local » au premier accès — le refuser ne
+bloque pas localhost. Le vrai
 test de bout en bout reste : installer le build N−1, publier N, vérifier que
 l'app **propose et installe** N, et qu'une signature altérée est refusée.
 
